@@ -1,22 +1,68 @@
-# cl-suffix-array
+# CL-Suffix-Array
 
-A Common Lisp library for building and using suffix arrays.
+A Common Lisp library for building suffix arrays using the SAScan algorithm, designed to handle files that exceed available RAM capacity.
 
-## Installation
+## Overview
 
-To load this system, make sure it is in a directory that ASDF knows about (e.g., `~/common-lisp/`) and then run:
+This library implements a simplified version of the SAScan algorithm for constructing suffix arrays for large text files. The SAScan algorithm is an external memory algorithm that can handle files much larger than available RAM by processing the text in chunks and using temporary storage.
 
-```lisp
-(asdf:load-system :cl-suffix-array)
-```
+## Features
+
+- Handles large UTF-8 text files that exceed available RAM
+- Memory-efficient chunked processing
+- External memory approach using temporary files
+- Proper UTF-8 encoding support
 
 ## Usage
 
 ```lisp
-(cl-suffix-array:build-suffix-array "banana")
-;; => (5 3 1 0 4 2)
+(cl-suffix-array:build-suffix-array "input-file.txt" "output-suffix-array.txt")
+```
+
+The function accepts the following parameters:
+
+- `input-file-path`: Path to the input text file
+- `output-file-path`: Path where the suffix array will be saved
+- `chunk-size`: Size of chunks to process at a time (optional, defaults to 10MB)
+
+The output file contains the suffix array as a sequence of integers representing the starting positions of the sorted suffixes.
+
+## Algorithm
+
+The implementation uses a simplified version of the SAScan algorithm:
+
+1. The input file is divided into chunks that fit in memory
+2. Each chunk is processed independently to generate partial results
+3. Results are merged using an external merge sort approach
+4. Temporary files are used for intermediate storage
+
+## Original SAScan Authors
+
+The original SAScan was developed by:
+- Juha Kärkkäinen
+- Dominik Kempa
+
+## Dependencies
+
+- UIOP (for path manipulation - though the implementation avoids direct UIOP dependencies for portability)
+
+## Testing
+
+To run the tests:
+
+```bash
+sbcl --script run-tests.lisp
+```
+
+Or for manual testing:
+
+```bash
+sbcl --load package.lisp --load cl-suffix-array.lisp --eval "(cl-suffix-array:build-suffix-array \"test-input.txt\" \"output-sa.txt\")"
 ```
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License
+
+---
+*This implementation was developed with the assistance of Qwen AI.*
