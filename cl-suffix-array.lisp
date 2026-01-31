@@ -98,3 +98,59 @@
         (loop for line = (read-line in nil nil)
               while line do
               (format out "~a~%" line))))))
+
+(defun read-text (text-file)
+  "Read the text from the original file."
+  (with-open-file (stream text-file :external-format :utf-8)
+    (let ((text (make-string (file-length stream))))
+      (read-sequence text stream)
+      text)))
+
+(defun read-suffix-array (suffix-array-file)
+  "Read the suffix array from the file."
+  (let ((suffixes '()))
+    (with-open-file (stream suffix-array-file :external-format :utf-8)
+      (loop for line = (read-line stream nil nil)
+            while line do
+            (push (parse-integer line) suffixes)))
+    (nreverse suffixes)))
+
+(defun binary-search-pattern (text suffix-array pattern)
+  "Use binary search on the suffix array to find if the pattern exists."
+  (when (zerop (length pattern))
+    (return-from binary-search-pattern t))  ; Empty pattern is always found
+
+  (let ((low 0)
+        (high (1- (length suffix-array))))
+    (loop while (<= low high) do
+      (let* ((mid (floor (+ low high) 2))
+             (suffix-start (nth mid suffix-array))
+             (end-pos (min (length text)
+                          (+ suffix-start (length pattern))))
+             (suffix (subseq text suffix-start end-pos)))
+        (cond
+          ((string= pattern suffix)
+           (return-from binary-search-pattern t))
+          ((string< pattern suffix)
+           (setf high (1- mid)))
+          (t
+           (setf low (1+ mid))))))
+    nil))
+
+(defstruct suffix-array
+  "Structure to represent a suffix array object wrapping original text and suffix array pathnames."
+  original-text-pathname
+  suffix-array-pathname)
+
+(defun open-suffix-array (original-text-pathname suffix-array-pathname)
+  "Open/create a suffix array object from original text pathname and suffix array pathname."
+  (make-suffix-array
+   :original-text-pathname original-text-pathname
+   :suffix-array-pathname suffix-array-pathname))
+
+(defun contains (suffix-obj pattern)
+  "Check if the text represented by the suffix array object contains the given pattern.
+   Returns T if the pattern is found, NIL otherwise."
+  (let* ((text (read-text (suffix-array-original-text-pathname suffix-obj)))
+         (suffix-array (read-suffix-array (suffix-array-suffix-array-pathname suffix-obj))))
+    (binary-search-pattern text suffix-array pattern)))

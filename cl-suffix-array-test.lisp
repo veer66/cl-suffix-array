@@ -194,4 +194,41 @@
   (format t "Test 5: Integration test~%")
   (test-integration)
 
+  ;; Test 6: Suffix array
+  (format t "Test 6: Suffix array~%")
+  (with-open-file (out "test-object.txt" :direction :output :if-exists :supersede :external-format :utf-8)
+    (write-string "the quick brown fox jumps over the lazy dog" out))
+
+  (cl-suffix-array:build-suffix-array "test-object.txt" "output-object.txt")
+
+  (let* ((obj (cl-suffix-array:open-suffix-array "test-object.txt" "output-object.txt"))
+         (found1 (cl-suffix-array:contains obj "fox"))
+         (found2 (cl-suffix-array:contains obj "jumps"))
+         (found3 (cl-suffix-array:contains obj "xyzzy")))
+    (if (and found1 found2 (not found3))
+        (format t "  PASS: Suffix array~%")
+        (format t "  FAIL: Suffix array (found1=~a, found2=~a, found3=~a)~%" found1 found2 found3)))
+
+  ;; Test 7: Suffix array with Unicode
+  (format t "Test 7: Suffix array with Unicode~%")
+  (with-open-file (out "test-unicode.txt" :direction :output :if-exists :supersede :external-format :utf-8)
+    (write-string "Hello 世界, this is a test with 中文 characters" out))
+
+  (cl-suffix-array:build-suffix-array "test-unicode.txt" "output-unicode.txt")
+
+  (let* ((obj (cl-suffix-array:open-suffix-array "test-unicode.txt" "output-unicode.txt"))
+         (found1 (cl-suffix-array:contains obj "世界"))
+         (found2 (cl-suffix-array:contains obj "中文"))
+         (found3 (cl-suffix-array:contains obj "xyz")))
+    (if (and found1 found2 (not found3))
+        (format t "  PASS: Suffix array with Unicode~%")
+        (format t "  FAIL: Suffix array with Unicode (found1=~a, found2=~a, found3=~a)~%" found1 found2 found3)))
+
+  ;; Cleanup
+  (format t "Cleaning up test files...~%")
+  (dolist (file '("test-object.txt" "output-object.txt"
+                  "test-unicode.txt" "output-unicode.txt"))
+    (when (probe-file file)
+      (delete-file file)))
+
   (format t "All tests completed.~%"))

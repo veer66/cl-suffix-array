@@ -27,6 +27,20 @@ The function accepts the following parameters:
 
 The output file contains the suffix array as a sequence of integers representing the starting positions of the sorted suffixes.
 
+## Search Functionality
+
+The library provides an object-oriented interface for searching patterns in the text using the suffix array:
+
+```lisp
+;; Open a suffix array object (reference to existing files)
+(defparameter my-suffix-arr (cl-suffix-array:open-suffix-array "original-text.txt" "suffix-array.txt"))
+
+;; Search using the object
+(cl-suffix-array:contains my-suffix-arr "search-pattern")
+```
+
+This approach allows you to create a reusable object that holds pathnames to both the original text and the suffix array files for efficient repeated searches.
+
 ## Algorithm
 
 The implementation uses a simplified version of the SAScan algorithm:
