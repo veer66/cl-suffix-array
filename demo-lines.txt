@@ -1,0 +1,4 @@
+First line has hello
+Second line is empty
+Third line has hello again
+Fourth line is different

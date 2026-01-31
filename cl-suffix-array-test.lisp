@@ -260,12 +260,30 @@
         (format t "  PASS: Find pattern function~%")
         (format t "  FAIL: Find pattern function (matches1=~a, matches2=~a, matches3=~a)~%" matches1 matches2 matches3)))
 
+  ;; Test 10: Find lines with pattern function
+  (format t "Test 10: Find lines with pattern function~%")
+  (with-open-file (out "test-lines.txt" :direction :output :if-exists :supersede :external-format :utf-8)
+    (format out "Line 1: Hello world~%Line 2: This is a test~%Line 3: Another line with world~%Line 4: Final line~%"))
+
+  (cl-suffix-array:build-suffix-array "test-lines.txt" "output-lines.txt")
+
+  (let* ((obj (cl-suffix-array:open-suffix-array "test-lines.txt" "output-lines.txt"))
+         (lines1 (cl-suffix-array:find-lines-with-pattern obj "world"))
+         (lines2 (cl-suffix-array:find-lines-with-pattern obj "test"))
+         (lines3 (cl-suffix-array:find-lines-with-pattern obj "xyz")))
+    (if (and (= (length lines1) 2)    ; Should find "world" in 2 lines
+            (= (length lines2) 1)      ; Should find "test" in 1 line
+            (= (length lines3) 0))     ; Should find nothing for "xyz"
+        (format t "  PASS: Find lines with pattern function~%")
+        (format t "  FAIL: Find lines with pattern function (lines1=~a, lines2=~a, lines3=~a)~%" lines1 lines2 lines3)))
+
   ;; Cleanup
   (format t "Cleaning up test files...~%")
   (dolist (file '("test-object.txt" "output-object.txt"
                   "test-unicode.txt" "output-unicode.txt"
                   "test-multiline.txt" "output-multiline.txt"
-                  "test-find.txt" "output-find.txt"))
+                  "test-find.txt" "output-find.txt"
+                  "test-lines.txt" "output-lines.txt"))
     (when (probe-file file)
       (delete-file file)))
 

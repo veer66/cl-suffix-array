@@ -4,9 +4,13 @@
 
 (defconstant +chunk-size+ (* 1024 1024 10)) ; 10MB chunks by default
 
+;; Dynamic variable to control memory usage
+(defparameter *max-memory-chunk-size* (* 10 1024 1024)) ; 10MB default
+
 ;; Forward declarations
 (declaim (ftype (function (t t t t) t) process-file-chunk))
 (declaim (ftype (function (t t t) t) perform-external-merge-sort))
+(declaim (ftype (function (t) t) split-text-by-lines))
 (declaim (ftype (function (t) t) read-text))
 
 (defun get-file-size (filepath)
@@ -125,6 +129,35 @@
               (setf start-pos (1+ pos))) ; Move past this match
           (return-from find-pattern (nreverse results))))) ; Exit when no more matches
     (nreverse results)))
+
+(defun find-lines-with-pattern (suffix-obj pattern)
+  "Find all lines that contain the given pattern in the text represented by the suffix array object.
+   Returns a list of (line-number . line-content) pairs for each line containing the pattern.
+   Uses memory-efficient line-by-line reading to handle large files."
+  (let ((filename (suffix-array-original-text-pathname suffix-obj))
+        (results '())
+        (line-num 0))
+    ;; Process the file line by line to avoid loading entire file into memory
+    (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
+      (loop for line = (read-line stream nil nil)
+            while line do
+            (when (search pattern line :test #'char=)
+              (push (cons line-num line) results))
+            (incf line-num)))
+    (nreverse results)))
+
+(defun split-text-by-lines (text)
+  "Split text into a list of lines."
+  (let ((lines '())
+        (start 0))
+    (loop for i from 0 below (length text) do
+      (when (char= (char text i) #\Newline)
+        (push (subseq text start i) lines)
+        (setf start (1+ i))))
+    ;; Add the last line if it doesn't end with newline
+    (when (< start (length text))
+      (push (subseq text start) lines))
+    (nreverse lines)))
 
 (defun read-text (text-file)
   "Read the text from the original file."

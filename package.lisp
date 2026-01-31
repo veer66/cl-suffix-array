@@ -4,6 +4,7 @@
            #:build-suffix-array-external
            #:contains
            #:find-pattern
+           #:find-lines-with-pattern
            #:suffix-array
            #:open-suffix-array
            #:suffix-array-original-text-pathname
