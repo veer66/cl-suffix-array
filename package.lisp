@@ -6,4 +6,5 @@
            #:suffix-array
            #:open-suffix-array
            #:suffix-array-original-text-pathname
-           #:suffix-array-suffix-array-pathname))
+           #:suffix-array-suffix-array-pathname
+           #:read-text))

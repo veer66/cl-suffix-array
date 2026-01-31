@@ -27,4 +27,4 @@ dumped-lisp
 *~
 .env
 .env_tmpl
-
+output*.txt

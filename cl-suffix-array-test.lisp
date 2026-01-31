@@ -28,11 +28,11 @@
     ;; Check that the function returns the output file path
     (when (equal result *output-file*)
       (format t "  PASS: Function returned correct output file path~%"))
-    
+
     ;; Check that the output file exists
     (when (probe-file *output-file*)
       (format t "  PASS: Output file exists~%"))
-    
+
     ;; For a simple test, we can check that the file is not empty
     (when (plusp (file-length (open *output-file* :element-type 'character)))
       (format t "  PASS: Output file is not empty~%"))))
