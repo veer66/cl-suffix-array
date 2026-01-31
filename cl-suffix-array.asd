@@ -6,4 +6,5 @@
   :depends-on (#:uiop)
   :serial t
   :components ((:file "package")
-               (:file "cl-suffix-array")))
+               (:file "cl-suffix-array")
+               (:file "cl-suffix-array-test")))

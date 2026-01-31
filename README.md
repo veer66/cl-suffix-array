@@ -48,10 +48,16 @@ The original SAScan was developed by:
 
 ## Testing
 
-To run the tests:
+To run the FiveAM tests:
 
 ```bash
-sbcl --script run-tests.lisp
+sbcl --eval "(require :asdf)" --eval "(asdf:load-system :cl-suffix-array)" --eval "(cl-suffix-array-test:run-tests)" --quit
+```
+
+To run the simple tests (without FiveAM dependency):
+
+```bash
+sbcl --load package.lisp --load cl-suffix-array.lisp --load cl-suffix-array-test.lisp --eval "(cl-suffix-array-test:run-simple-tests)" --quit
 ```
 
 Or for manual testing:
