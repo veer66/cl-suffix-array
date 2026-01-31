@@ -60,6 +60,21 @@ The original SAScan was developed by:
 
 - UIOP (for path manipulation - though the implementation avoids direct UIOP dependencies for portability)
 
+## Find Pattern Function
+
+The library also provides a `find-pattern` function to locate all occurrences of a pattern in the text:
+
+```lisp
+;; Create a suffix array object
+(defparameter obj (cl-suffix-array:open-suffix-array "text.txt" "suffix-array.txt"))
+
+;; Find all occurrences of a pattern
+(cl-suffix-array:find-pattern obj "search-term")
+; Returns a list of cons cells: ((start-pos . end-pos) ...)
+```
+
+The function returns a list of pairs where each pair represents the start and end character positions of each occurrence of the pattern in the text.
+
 ## Testing
 
 To run the FiveAM tests:

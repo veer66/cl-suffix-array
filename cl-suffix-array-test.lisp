@@ -243,11 +243,29 @@
         (format t "  PASS: Suffix array with multiline text~%")
         (format t "  FAIL: Suffix array with multiline text (found1=~a, found2=~a, found3=~a, found4=~a)~%" found1 found2 found3 found4)))
 
+  ;; Test 9: Find pattern function
+  (format t "Test 9: Find pattern function~%")
+  (with-open-file (out "test-find.txt" :direction :output :if-exists :supersede :external-format :utf-8)
+    (write-string "banana bandana" out))
+
+  (cl-suffix-array:build-suffix-array "test-find.txt" "output-find.txt")
+
+  (let* ((obj (cl-suffix-array:open-suffix-array "test-find.txt" "output-find.txt"))
+         (matches1 (cl-suffix-array:find-pattern obj "ana"))
+         (matches2 (cl-suffix-array:find-pattern obj "ban"))
+         (matches3 (cl-suffix-array:find-pattern obj "xyz")))
+    (if (and (= (length matches1) 3)  ; Should find "ana" at positions (1,4), (3,6), (11,14)
+            (= (length matches2) 2)    ; Should find "ban" at positions (0,3), (7,10)
+            (= (length matches3) 0))   ; Should find nothing for "xyz"
+        (format t "  PASS: Find pattern function~%")
+        (format t "  FAIL: Find pattern function (matches1=~a, matches2=~a, matches3=~a)~%" matches1 matches2 matches3)))
+
   ;; Cleanup
   (format t "Cleaning up test files...~%")
   (dolist (file '("test-object.txt" "output-object.txt"
                   "test-unicode.txt" "output-unicode.txt"
-                  "test-multiline.txt" "output-multiline.txt"))
+                  "test-multiline.txt" "output-multiline.txt"
+                  "test-find.txt" "output-find.txt"))
     (when (probe-file file)
       (delete-file file)))
 

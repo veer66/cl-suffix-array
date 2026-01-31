@@ -3,6 +3,7 @@
   (:export #:build-suffix-array
            #:build-suffix-array-external
            #:contains
+           #:find-pattern
            #:suffix-array
            #:open-suffix-array
            #:suffix-array-original-text-pathname

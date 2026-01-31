@@ -110,6 +110,22 @@
     ;; Simple search for the pattern in the text
     (not (null (search pattern text :test #'char=)))))
 
+(defun find-pattern (suffix-obj pattern)
+  "Find all occurrences of the pattern in the text represented by the suffix array object.
+   Returns a list of pairs (start-char-index . end-char-index) for each occurrence."
+  (let ((text (read-text (suffix-array-original-text-pathname suffix-obj)))
+        (results '())
+        (start-pos 0))
+    (loop
+      (let ((pos (search pattern text :start2 start-pos :test #'char=)))
+        (if pos
+            (let ((end-pos (+ pos (length pattern))))
+              ;; Return character positions as pairs
+              (push (cons pos end-pos) results)
+              (setf start-pos (1+ pos))) ; Move past this match
+          (return-from find-pattern (nreverse results))))) ; Exit when no more matches
+    (nreverse results)))
+
 (defun read-text (text-file)
   "Read the text from the original file."
   (with-open-file (stream text-file :external-format :utf-8)
