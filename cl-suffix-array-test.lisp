@@ -4,6 +4,9 @@
 
 (in-package #:cl-suffix-array-test)
 
+;; Forward declarations
+(declaim (ftype (function () t) run-simple-tests))
+
 ;; Test data
 (defparameter *test-text* "banana")
 (defparameter *test-file* "test-input-full.txt")

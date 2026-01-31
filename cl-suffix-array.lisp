@@ -7,6 +7,7 @@
 ;; Forward declarations
 (declaim (ftype (function (t t t t) t) process-file-chunk))
 (declaim (ftype (function (t t t) t) perform-external-merge-sort))
+(declaim (ftype (function (t) t) read-text))
 
 (defun get-file-size (filepath)
   "Get the size of a file in bytes."
@@ -54,29 +55,21 @@
 
 (defun process-file-chunk (input-file-path output-chunk-file start-pos end-pos)
   "Process a single chunk of the input file to generate partial suffix array information."
-  (let ((chunk-size (- end-pos start-pos)))
-    ;; Read the chunk from the input file
-    (with-open-file (input-stream input-file-path
-                                 :direction :input
-                                 :element-type '(unsigned-byte 8)
-                                 :external-format :utf-8)
-      (file-position input-stream start-pos)
-      (let ((buffer (make-array chunk-size :element-type '(unsigned-byte 8))))
-        (read-sequence buffer input-stream)
-
-        ;; For this simplified version, we'll just store position info
-        ;; A full implementation would extract and sort suffixes within the chunk
-        (with-open-file (out output-chunk-file
-                             :direction :output
-                             :element-type 'character
-                             :external-format :utf-8
-                             :if-does-not-exist :create
-                             :if-exists :supersede)
-          (loop for i from 0 below chunk-size do
-            (format out "~a~%" (+ start-pos i))))))))
+  ;; Read the entire text to handle UTF-8 properly and get character positions
+  (let ((text (read-text input-file-path)))
+    ;; Write the character positions for this chunk
+    (with-open-file (out output-chunk-file
+                         :direction :output
+                         :element-type 'character
+                         :external-format :utf-8
+                         :if-does-not-exist :create
+                         :if-exists :supersede)
+      (loop for i from start-pos below (min end-pos (length text))
+            do (format out "~a~%" i)))))
 
 (defun perform-external-merge-sort (chunk-files output-file-path temp-dir)
   "Perform external merge sort on the chunk files to create the final suffix array."
+  (declare (ignore temp-dir))  ; Suppress unused variable warning
   (with-open-file (out output-file-path
                        :direction :output
                        :element-type 'character
