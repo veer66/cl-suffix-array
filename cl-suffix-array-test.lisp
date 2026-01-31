@@ -224,10 +224,27 @@
         (format t "  PASS: Suffix array with Unicode~%")
         (format t "  FAIL: Suffix array with Unicode (found1=~a, found2=~a, found3=~a)~%" found1 found2 found3)))
 
+  ;; Test 8: Suffix array with multiline text
+  (format t "Test 8: Suffix array with multiline text~%")
+  (with-open-file (out "test-multiline.txt" :direction :output :if-exists :supersede :external-format :utf-8)
+    (format out "Line 1: Hello World~%Line 2: This is a test~%Line 3: With multiple lines~%Line 4: And more content~%"))
+
+  (cl-suffix-array:build-suffix-array "test-multiline.txt" "output-multiline.txt")
+
+  (let* ((obj (cl-suffix-array:open-suffix-array "test-multiline.txt" "output-multiline.txt"))
+         (found1 (cl-suffix-array:contains obj "World"))
+         (found2 (cl-suffix-array:contains obj "multiple lines"))
+         (found3 (cl-suffix-array:contains obj "Line 2:"))
+         (found4 (cl-suffix-array:contains obj "xyz")))
+    (if (and found1 found2 found3 (not found4))
+        (format t "  PASS: Suffix array with multiline text~%")
+        (format t "  FAIL: Suffix array with multiline text (found1=~a, found2=~a, found3=~a, found4=~a)~%" found1 found2 found3 found4)))
+
   ;; Cleanup
   (format t "Cleaning up test files...~%")
   (dolist (file '("test-object.txt" "output-object.txt"
-                  "test-unicode.txt" "output-unicode.txt"))
+                  "test-unicode.txt" "output-unicode.txt"
+                  "test-multiline.txt" "output-multiline.txt"))
     (when (probe-file file)
       (delete-file file)))
 
