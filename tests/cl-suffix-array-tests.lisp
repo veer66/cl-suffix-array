@@ -21,15 +21,15 @@
 
 (test basic-functionality
   (create-test-file "banana" "banana.txt")
-  (let ((result (cl-suffix-array:build-suffix-array *test-file* *output-file*)))
+  (let ((result (cl-suffix-array:build-suffix-array "banana.txt" "banana-out.txt")))
     ;; Check that the function returns the output file path
-    (is (equal result *output-file*) "Function returned correct output file path")
-    (is (probe-file *output-file*) "Output file exists")
-    (is (plusp (file-length (open *output-file* :element-type 'character)))
+    (is (equal result "banana-out.txt") "Function returned correct output file path")
+    (is (probe-file "banana-out.txt") "Output file exists")
+    (is (plusp (file-length (open "banana-out.txt" :element-type 'character)))
 	"Output file is not empty")))
 
 (test file-size-handling
-  (create-test-file "abc" "abc.txt")
+  (create-test-file "abc" "small-test.txt")
   (let ((result (cl-suffix-array:build-suffix-array "small-test.txt" "small-out.txt")))
     (is (equal result "small-out.txt")
 	"Function returned correct output file path for small file")
