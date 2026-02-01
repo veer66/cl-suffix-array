@@ -11,7 +11,6 @@
 (declaim (ftype (function (t t t t) t) process-file-chunk))
 (declaim (ftype (function (t t t) t) perform-external-merge-sort))
 (declaim (ftype (function (t) t) split-text-by-lines))
-(declaim (ftype (function (t) t) read-text))
 
 (defun get-file-size (filepath)
   "Get the size of a file in bytes."
@@ -59,17 +58,16 @@
 
 (defun process-file-chunk (input-file-path output-chunk-file start-pos end-pos)
   "Process a single chunk of the input file to generate partial suffix array information."
-  ;; Read the entire text to handle UTF-8 properly and get character positions
-  (let ((text (read-text input-file-path)))
-    ;; Write the character positions for this chunk
-    (with-open-file (out output-chunk-file
-                         :direction :output
-                         :element-type 'character
-                         :external-format :utf-8
-                         :if-does-not-exist :create
-                         :if-exists :supersede)
-      (loop for i from start-pos below (min end-pos (length text))
-            do (format out "~a~%" i)))))
+  ;; For this simplified version, we just write the character positions for this chunk
+  ;; A full SAScan implementation would extract and process actual suffixes
+  (with-open-file (out output-chunk-file
+                       :direction :output
+                       :element-type 'character
+                       :external-format :utf-8
+                       :if-does-not-exist :create
+                       :if-exists :supersede)
+    (loop for i from start-pos below end-pos do
+      (format out "~a~%" i))))
 
 (defun perform-external-merge-sort (chunk-files output-file-path temp-dir)
   "Perform external merge sort on the chunk files to create the final suffix array."
@@ -109,25 +107,41 @@
 
 (defun contains (suffix-obj pattern)
   "Check if the text represented by the suffix array object contains the given pattern.
-   Returns T if the pattern is found, NIL otherwise."
-  (let ((text (read-text (suffix-array-original-text-pathname suffix-obj))))
-    ;; Simple search for the pattern in the text
-    (not (null (search pattern text :test #'char=)))))
+   Returns T if the pattern is found, NIL otherwise.
+   Uses memory-efficient line-by-line reading to handle large files."
+  (let ((filename (suffix-array-original-text-pathname suffix-obj)))
+    (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
+      (loop
+        (let ((line (read-line stream nil nil)))
+          (if line
+              (when (search pattern line :test #'char=)
+                (return-from contains t))
+            (return-from contains nil)))))))
 
 (defun find-pattern (suffix-obj pattern)
   "Find all occurrences of the pattern in the text represented by the suffix array object.
-   Returns a list of pairs (start-char-index . end-char-index) for each occurrence."
-  (let ((text (read-text (suffix-array-original-text-pathname suffix-obj)))
+   Returns a list of pairs (start-char-index . end-char-index) for each occurrence.
+   NOTE: For very large files, this may consume significant memory as it collects all matches."
+  (let ((filename (suffix-array-original-text-pathname suffix-obj))
         (results '())
-        (start-pos 0))
-    (loop
-      (let ((pos (search pattern text :start2 start-pos :test #'char=)))
-        (if pos
-            (let ((end-pos (+ pos (length pattern))))
-              ;; Return character positions as pairs
-              (push (cons pos end-pos) results)
-              (setf start-pos (1+ pos))) ; Move past this match
-          (return-from find-pattern (nreverse results))))) ; Exit when no more matches
+        (char-offset 0))
+    ;; Process the file line by line to avoid loading entire file into memory
+    (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
+      (loop for line = (read-line stream nil nil)
+            while line do
+            (let ((start-pos 0))
+              ;; Find all occurrences of the pattern in this line
+              (loop
+                (let ((pos (search pattern line :start2 start-pos :test #'char=)))
+                  (if pos
+                      (let ((abs-start-pos (+ char-offset pos))
+                            (abs-end-pos (+ char-offset pos (length pattern))))
+                        ;; Add the match with absolute character positions
+                        (push (cons abs-start-pos abs-end-pos) results)
+                        (setf start-pos (1+ pos))) ; Move past this match
+                    (return)))) ; Exit when no more matches in this line
+              ;; Update the character offset for the next line (including newline)
+              (incf char-offset (1+ (length line))))))
     (nreverse results)))
 
 (defun find-lines-with-pattern (suffix-obj pattern)
@@ -159,9 +173,3 @@
       (push (subseq text start) lines))
     (nreverse lines)))
 
-(defun read-text (text-file)
-  "Read the text from the original file."
-  (with-open-file (stream text-file :external-format :utf-8)
-    (let ((text (make-string (file-length stream))))
-      (read-sequence text stream)
-      text)))
