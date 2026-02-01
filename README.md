@@ -104,6 +104,14 @@ This function returns a list of pairs where each pair contains the line number (
 (asdf:test-system "cl-suffix-array")
 ```
 
+or
+
+```Bash
+sbcl --eval '(asdf:load-system :cl-suffix-array)' \
+	--eval '(asdf:test-system "cl-suffix-array")' \
+	--quit
+```
+
 ## License
 
 MIT License
