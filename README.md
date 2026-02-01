@@ -72,6 +72,7 @@ The original SAScan was developed by:
 The library provides several functions to locate patterns in the text:
 
 ### Find Pattern
+
 Find all occurrences of a pattern and return character positions:
 
 ```lisp
@@ -98,78 +99,10 @@ This function returns a list of pairs where each pair contains the line number (
 
 ## Testing
 
-To run the FiveAM tests:
-
 ```bash
-sbcl --eval "(require :asdf)" --eval "(asdf:load-system :cl-suffix-array)" --eval "(cl-suffix-array-test:run-tests)" --quit
-```
-
-To run the simple tests (without FiveAM dependency):
-
-```bash
-sbcl --load package.lisp --load cl-suffix-array.lisp --load cl-suffix-array-test.lisp --eval "(cl-suffix-array-test:run-simple-tests)" --quit
-```
-
-Or for manual testing:
-
-```bash
-sbcl --load package.lisp --load cl-suffix-array.lisp --eval "(cl-suffix-array:build-suffix-array \"test-input.txt\" \"output-sa.txt\")"
-```
-
-## Memory Efficiency
-
-The implementation is designed to handle large files that exceed available RAM by:
-
-1. Processing files in chunks
-2. Using external memory algorithms
-3. Reading files line-by-line for search operations
-4. Using temporary files for intermediate results
-
-## Find Functions
-
-The library provides several functions to locate patterns in the text:
-
-### Find Pattern
-Find all occurrences of a pattern and return character positions:
-
-```lisp
-;; Create a suffix array object
-(defparameter obj (cl-suffix-array:open-suffix-array "text.txt" "suffix-array.txt"))
-
-;; Find all occurrences of a pattern
-(cl-suffix-array:find-pattern obj "search-term")
-; Returns a list of cons cells: ((start-pos . end-pos) ...)
-```
-
-The function returns a list of pairs where each pair represents the start and end character positions of each occurrence of the pattern in the text.
-
-### Find Lines with Pattern
-Find all lines that contain a pattern and return the line numbers and content:
-
-```lisp
-;; Find all lines containing a pattern
-(cl-suffix-array:find-lines-with-pattern obj "search-term")
-; Returns a list of cons cells: ((line-number . line-content) ...)
-```
-
-This function returns a list of pairs where each pair contains the line number (0-indexed) and the full content of lines that contain the pattern.
-
-## Command-Line Wrapper
-
-A bash wrapper script is provided for convenient command-line usage:
-
-```bash
-# Basic usage
-./cl-suffix-array-wrapper.sh input.txt output-sa.txt
-
 # Verbose output
 ./cl-suffix-array-wrapper.sh --verbose input.txt output-sa.txt
-
-# Custom paths
-./cl-suffix-array-wrapper.sh --sbcl-path /path/to/sbcl --lisp-path /path/to/cl-suffix-array.lisp input.txt output-sa.txt
 ```
-
-The wrapper script provides a convenient way to create suffix arrays from the command line without needing to start a Lisp REPL.
 
 ## License
 
