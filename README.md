@@ -99,9 +99,9 @@ This function returns a list of pairs where each pair contains the line number (
 
 ## Testing
 
-```bash
-# Verbose output
-./cl-suffix-array-wrapper.sh --verbose input.txt output-sa.txt
+```Lisp
+(asdf:load-system :cl-suffix-array)
+(asdf:test-system "cl-suffix-array")
 ```
 
 ## License
