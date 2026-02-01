@@ -1,5 +1,12 @@
 # CL-Suffix-Array
 
+## ⚠️ WIP Warning ⚠️
+
+This project is currently a Work In Progress. The implementation is inspired by the SAScan algorithm but is not an exact or fully optimized implementation. Current performance characteristics are being evaluated and improved.
+
+## AI Development Credit
+This implementation was developed with the assistance of Google Gemini and Qwen AI.
+
 A Common Lisp library for building suffix arrays using the SAScan algorithm, designed to handle files that exceed available RAM capacity.
 
 ## Overview
@@ -167,6 +174,3 @@ The wrapper script provides a convenient way to create suffix arrays from the co
 ## License
 
 MIT License
-
----
-*This implementation was developed with the assistance of Qwen AI.*
