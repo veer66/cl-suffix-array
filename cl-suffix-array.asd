@@ -1,4 +1,4 @@
-(defsystem #:cl-suffix-array
+(asdf:defsystem #:cl-suffix-array
   :description "A library for creating and using suffix arrays."
   :author "Vee Satayamas <veerpub@pm.me>"
   :license "MIT"
@@ -6,5 +6,4 @@
   :depends-on (#:uiop)
   :serial t
   :components ((:file "package")
-               (:file "cl-suffix-array")
-               (:file "cl-suffix-array-test")))
+               (:file "cl-suffix-array")))

@@ -73,11 +73,7 @@
       (setf (aref suffixes i) i))
 
     ;; Sort suffixes based on their lexicographic order
-    (sort suffixes
-          (lambda (i j)
-            (let ((substr-i (subseq text i))
-                  (substr-j (subseq text j)))
-              (string< substr-i substr-j))))
+    (sort suffixes #'(lambda (i j) (string< text text :start1 i :start2 j)))
 
     suffixes))
 
@@ -145,8 +141,8 @@
             while line do
             (let ((pos (parse-integer line :junk-allowed t)))
               (when pos
-                (push pos suffixes)))
-    (nreverse suffixes)))))
+                (push pos suffixes))))
+      (nreverse suffixes))))
 
 (defun compute-line-byte-positions (file-pathname)
   "Compute the byte positions of each line in the file for random access."
@@ -209,22 +205,23 @@
 (defun get-text-at-position-from-file (suffix-obj pos pattern-len)
   "Get a substring from file starting at pos with length pattern-len.
    Uses cached text if available, otherwise reads from file."
-  (let ((cached-text (suffix-array-cached-text suffix-obj)))
-    (if cached-text
-        ;; Use cached text if available
-        (let ((end-pos (min (+ pos pattern-len) (length cached-text))))
-          (subseq cached-text pos end-pos))
-        ;; Otherwise read from file (for large files)
-        (let ((filename (suffix-array-original-text-pathname suffix-obj)))
-          (with-open-file (stream filename :element-type 'character :external-format :utf-8)
-            ;; Skip to the desired character position
-            (loop repeat pos do (read-char stream nil nil))
-            ;; Read the required number of characters
-            (let ((result (make-string pattern-len)))
-              (let ((chars-read (read-sequence result stream)))
-                (if (= chars-read pattern-len)
-                    result
-                    (subseq result 0 chars-read)))))))))
+  (when pos  ; Check if pos is not NIL
+    (let ((cached-text (suffix-array-cached-text suffix-obj)))
+      (if cached-text
+          ;; Use cached text if available
+          (let ((end-pos (min (+ pos pattern-len) (length cached-text))))
+            (subseq cached-text pos end-pos))
+          ;; Otherwise read from file (for large files)
+          (let ((filename (suffix-array-original-text-pathname suffix-obj)))
+            (with-open-file (stream filename :element-type 'character :external-format :utf-8)
+              ;; Skip to the desired character position
+              (loop repeat pos do (read-char stream nil nil))
+              ;; Read the required number of characters
+              (let ((result (make-string pattern-len)))
+                (let ((chars-read (read-sequence result stream)))
+                  (if (= chars-read pattern-len)
+                      result
+                      (subseq result 0 chars-read))))))))))
 
 (defun get-suffix-array-length (suffix-obj)
   "Get the length of the suffix array by using the cached data or counting lines in the file."
@@ -253,8 +250,8 @@
           ((and suffix-start text-substr (string>= text-substr pattern))
            (setf result mid)
            (setf high (1- mid)))
-          (t (setf low (1+ mid))))
-    result))))
+          (t (setf low (1+ mid))))))
+    result))
 
 (defun binary-search-right-bound (suffix-obj pattern)
   "Find the rightmost position in the suffix array where the pattern could occur."
@@ -270,8 +267,8 @@
           ((and suffix-start text-substr (string<= text-substr pattern))
            (setf result mid)
            (setf low (1+ mid)))
-          (t (setf high (1- mid))))
-    result))))
+          (t (setf high (1- mid))))))
+    result))
 
 (defun find-pattern-binary-search (suffix-obj pattern)
   "Find all occurrences of the pattern using binary search on the suffix array.
@@ -288,9 +285,9 @@
           (when (and suffix-start text-substr (string= text-substr pattern))
             (let ((abs-start-pos suffix-start)
                   (abs-end-pos (+ suffix-start (length pattern))))
-              (push (cons abs-start-pos abs-end-pos) results))))
+              (push (cons abs-start-pos abs-end-pos) results)))))
 
-    (nreverse results)))))
+    (nreverse results))))
 
 (defun find-pattern (suffix-obj pattern)
   "Find all occurrences of the pattern in the text represented by the suffix array object.
@@ -310,22 +307,6 @@
           (and suffix-start text-substr (string= text-substr pattern)))
         nil)))
 
-(defun find-lines-with-pattern (suffix-obj pattern)
-  "Find all lines that contain the given pattern in the text represented by the suffix array object.
-   Returns a list of (line-number . line-content) pairs for each line containing the pattern.
-   Uses memory-efficient line-by-line reading to handle large files."
-  (let ((filename (suffix-array-original-text-pathname suffix-obj))
-        (results '())
-        (line-num 0))
-    ;; Process the file line by line to avoid loading entire file into memory
-    (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
-      (loop for line = (read-line stream nil nil)
-            while line do
-            (when (search pattern line :test #'char=)
-              (push (cons line-num line) results))
-            (incf line-num)))
-    (nreverse results)))
-
 (defun split-text-by-lines (text)
   "Split text into a list of lines."
   (let ((lines '())
@@ -338,3 +319,25 @@
     (when (< start (length text))
       (push (subseq text start) lines))
     (nreverse lines)))
+
+(defun find-lines-with-pattern (suffix-obj pattern)
+  "Find all lines that contain the given pattern in the text represented by the suffix array object.
+   Returns a list of lines that contain the pattern."
+  (let ((text (suffix-array-cached-text suffix-obj)))
+    (if text
+        ;; If text is cached, use it directly
+        (let ((lines (split-text-by-lines text))
+              (matching-lines '()))
+          (loop for line in lines do
+            (when (search pattern line)
+              (push line matching-lines)))
+          (nreverse matching-lines))
+        ;; Otherwise read from file
+        (let ((filename (suffix-array-original-text-pathname suffix-obj))
+              (matching-lines '()))
+          (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
+            (loop for line = (read-line stream nil nil)
+                  while line do
+                    (when (search pattern line)
+                      (push line matching-lines))))
+          (nreverse matching-lines)))))
