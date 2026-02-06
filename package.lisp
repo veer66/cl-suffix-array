@@ -12,4 +12,5 @@
            #:read-text
            #:process-block
            #:perform-psascan-merge
-           #:process-text-block))
+           #:process-text-block
+           #:process-all-blocks))

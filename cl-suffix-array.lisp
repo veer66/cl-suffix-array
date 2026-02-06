@@ -83,36 +83,36 @@
                        :external-format :utf-8
                        :if-does-not-exist :create
                        :if-exists :supersede)
-		  (log-debug "Writing merged suffix array to: ~a" output-file-path)
+      (log-debug "Writing merged suffix array to: ~a" output-file-path)
 
-		  ;; In a real pSAscan implementation, this would perform a complex merging process
-		  ;; involving gap arrays and recursive merging of blocks.
-		  ;;
-		  ;; For this implementation, we'll simulate the merge by combining the block results
-		  ;; in the correct order based on the block boundaries.
+      ;; In a real pSAscan implementation, this would perform a complex merging process
+      ;; involving gap arrays and recursive merging of blocks.
+      ;;
+      ;; For this implementation, we'll simulate the merge by combining the block results
+      ;; in the correct order based on the block boundaries.
 
-		  ;; Sort the half-block info by beginning position
-		  (let ((sorted-blocks (sort (copy-list half-block-info) #'< :key (lambda (x) (getf x :beg)))))
-		    (log-debug "Sorted ~a blocks by position" (length sorted-blocks))
+      ;; Sort the half-block info by beginning position
+      (let ((sorted-blocks (sort (copy-list half-block-info) #'< :key (lambda (x) (getf x :beg)))))
+        (log-debug "Sorted ~a blocks by position" (length sorted-blocks))
 
-		    ;; Process each block in order and merge the suffix arrays
-		    (dolist (block-info sorted-blocks)
-		      (let ((block-file (getf block-info :file)))
-			(log-debug "Merging block file: ~a" block-file)
-			(with-open-file (in block-file
-					    :direction :input
-					    :element-type 'character
-					    :external-format :utf-8)
-					(loop for line = (read-line in nil nil)
-					      while line do
-					      (format out "~a~%" line)))
-			(log-debug "Merged block file: ~a" block-file)))
-		    (log-info "Completed pSAscan merge for ~a blocks" (length half-block-info)))))
+        ;; Process each block in order and merge the suffix arrays
+        (dolist (block-info sorted-blocks)
+          (let ((block-file (getf block-info :file)))
+           (log-debug "Merging block file: ~a" block-file)
+           (with-open-file (in block-file
+                            :direction :input
+                            :element-type 'character
+                            :external-format :utf-8)
+            (loop for line = (read-line in nil nil)
+             while line do
+             (format out "~a~%" line)))
+           (log-debug "Merged block file: ~a" block-file)))
+        (log-info "Completed pSAscan merge for ~a blocks" (length half-block-info)))))
 
 (defun compute-gap (block-rank block-gap right-block-beg right-block-end text-length
-			       max-threads block-i0 gap-buf-size block-last-symbol
-			       initial-ranks text-filename output-filename right-block-gt-begin-rev
-			       newtail-gt-begin-rev)
+                    max-threads block-i0 gap-buf-size block-last-symbol
+                    initial-ranks text-filename output-filename right-block-gt-begin-rev
+                    newtail-gt-begin-rev)
   "Compute gap array for pSAscan algorithm - simulates the core computation."
   (declare (ignore block-rank right-block-beg right-block-end text-length
                    max-threads block-i0 gap-buf-size block-last-symbol
@@ -122,12 +122,11 @@
   ;; comparison between suffixes in the current block and the right block
   ;;
   ;; For this implementation, we just fill the gap array with zeros
-  (declare (ignore block-gap))
-  )
+  (declare (ignore block-gap)))
 
 (defun merge-bwt (left-block-bwt right-block-bwt left-block-size right-block-size
-				 left-block-i0 right-block-i0 left-block-last block-pbwt
-				 left-block-gap-bv max-threads)
+                  left-block-i0 right-block-i0 left-block-last block-pbwt
+                  left-block-gap-bv max-threads)
   "Merge BWTs of left and right blocks - simulates the core computation."
   (declare (ignore left-block-bwt right-block-bwt left-block-size right-block-size
                    left-block-i0 right-block-i0 left-block-last block-pbwt
@@ -170,7 +169,7 @@
 (defun get-file-size (filepath)
   "Get the size of a file in bytes."
   (with-open-file (stream filepath :element-type '(unsigned-byte 8))
-		  (file-length stream)))
+      (file-length stream)))
 
 (defun build-suffix-array (input-file-path output-file-path &key (chunk-size +chunk-size+) (memory-limit (* 10 1024 1024))) ; 8GB default
   "Builds a suffix array from the text in input-file-path and saves it to output-file-path using pSAscan algorithm.
@@ -576,5 +575,3 @@
   ;;
   ;; For this implementation, we return a simple vector of zeros
   (make-array 10 :initial-element 0))  ; Fixed size to avoid reading block-sa
-
-
