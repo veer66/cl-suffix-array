@@ -82,7 +82,7 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
              (buffer (make-array total-to-read :element-type '(unsigned-byte 8))))
         (read-sequence buffer in :end total-to-read)
         ;; Extract just the block bytes starting at block-beg
-        (let ((block-bytes (subseq buffer block-beg)))
+        (let ((block-bytes (subseq buffer block-beg))))
         (log-debug "Read block content of ~a bytes" (length block-bytes))
 
         ;; Convert bytes to string for suffix sorting
@@ -97,7 +97,7 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
             ;; Write the suffix array indices (adjusted by block-beg) to the output file
             (dotimes (i (length sa))
               (format out "~a~%" (+ block-beg (aref sa i))))
-            (log-debug "Wrote suffix array to output file"))))))
+            (log-debug "Wrote suffix array to output file"))))
     (log-info "Completed processing block [~a, ~a)" block-beg block-end)))
 
 (defconstant +chunk-size+ (* 1024 1024)) ; 10MB chunks by default
@@ -196,7 +196,7 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
       ;; Write placeholder gap values
       (loop for i from 0 to block-size do
             (format gap-out "~a~%" 0))
-      (log-debug "Created gap file with ~a entries" (1+ block-size)))))
+      (log-debug "Created gap file with ~a entries" (1+ block-size))))
 
 (defun get-file-size (filepath)
   "Get the size of a file in bytes."
@@ -283,22 +283,6 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
 (defun perform-external-merge-sort (chunk-files output-file-path temp-dir)
   "Perform external merge sort on the chunk files to create the final suffix array."
   (declare (ignore temp-dir))  ; Suppress unused variable warning
-<<<<<<< HEAD
-  ;; For now, just copy the first chunk file if it contains a proper suffix array
-  ;; A full implementation would merge suffix arrays properly
-  (when chunk-files
-    (let ((first-chunk (first chunk-files)))
-      (with-open-file (in first-chunk :external-format :utf-8 :element-type 'character)
-        (with-open-file (out output-file-path
-                             :direction :output
-                             :element-type 'character
-                             :external-format :utf-8
-                             :if-does-not-exist :create
-                             :if-exists :supersede)
-          (loop for line = (read-line in nil nil)
-                while line do
-                (format out "~a~%" line)))))))
-=======
   (log-info "Starting external merge sort for ~a chunk files" (length chunk-files))
   (with-open-file (out output-file-path
                        :direction :output
@@ -325,7 +309,6 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
               (format out "~a~%" line)))
       (log-debug "Completed merging chunk file: ~a" chunk-file))
     (log-info "Completed external merge sort for ~a chunk files" (length chunk-files))))
->>>>>>> 83b89d0 (feat: mem limit)
 
 (defstruct suffix-array
   "Structure to represent a suffix array object wrapping original text and suffix array pathnames."
@@ -361,6 +344,13 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
                 (incf current-pos))
         (nreverse positions)))))
 
+(defun read-text (filepath)
+  "Read the entire text file and return its contents as a string."
+  (with-open-file (stream filepath :external-format :utf-8 :element-type 'character)
+    (let ((content (make-string (file-length stream))))
+      (read-sequence content stream)
+      content)))
+
 (defun open-suffix-array (original-text-pathname suffix-array-pathname)
   "Open/create a suffix array object from original text pathname and suffix array pathname."
   (let ((cached-suffixes nil)
@@ -378,7 +368,6 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
      :cached-text cached-text
      :cached-line-byte-positions cached-line-byte-positions)))
 
-<<<<<<< HEAD
 (defun get-suffix-at-index (suffix-obj index)
   "Get the suffix array value at a specific index by using random access to the file."
   (let ((cached-line-byte-positions (suffix-array-cached-line-byte-positions suffix-obj)))
@@ -495,12 +484,6 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
 
     (nreverse results))))
 
-(defun find-pattern (suffix-obj pattern)
-  "Find all occurrences of the pattern in the text represented by the suffix array object.
-   Uses binary search on the suffix array for efficient pattern matching.
-   Returns a list of pairs (start-char-index . end-char-index) for each occurrence."
-  (find-pattern-binary-search suffix-obj pattern))
-
 (defun contains (suffix-obj pattern)
   "Check if the text represented by the suffix array object contains the given pattern.
    Uses binary search on the suffix array for efficient pattern matching.
@@ -512,74 +495,81 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
                (text-substr (get-text-at-position-from-file suffix-obj suffix-start (length pattern))))
           (and suffix-start text-substr (string= text-substr pattern)))
         nil)))
-=======
-(defun contains (suffix-obj pattern)
-  "Check if the text represented by the suffix array object contains the given pattern.
-   Returns T if the pattern is found, NIL otherwise.
-   Uses memory-efficient line-by-line reading to handle large files."
-  (log-debug "Checking if text contains pattern: ~a" pattern)
-  (let ((filename (suffix-array-original-text-pathname suffix-obj)))
-    (log-debug "Searching in file: ~a" filename)
-    (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
-      (let ((line-num 0))
-        (loop
-          (let ((line (read-line stream nil nil)))
-            (if line
-                (progn
-                  (when (search pattern line :test #'char=)
-                    (log-debug "Pattern found at line ~a" line-num)
-                    (return-from contains t))
-                  (incf line-num))
-              (progn
-                (log-debug "Reached end of file, pattern not found")
-                (return-from contains nil)))))))))
+
 
 (defun find-pattern (suffix-obj pattern)
   "Find all occurrences of the pattern in the text represented by the suffix array object.
    Returns a list of pairs (start-char-index . end-char-index) for each occurrence.
-   NOTE: For very large files, this may consume significant memory as it collects all matches."
+   Uses binary search on the suffix array for efficient pattern matching."
   (log-debug "Finding pattern '~a' in text" pattern)
-  (let ((filename (suffix-array-original-text-pathname suffix-obj))
-        (results '())
-        (char-offset 0))
-    ;; Process the file line by line to avoid loading entire file into memory
-    (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
-      (loop for line = (read-line stream nil nil)
-            while line do
-            (let ((start-pos 0))
-              ;; Find all occurrences of the pattern in this line
-              (loop
-                (let ((pos (search pattern line :start2 start-pos :test #'char=)))
-                  (if pos
-                      (let ((abs-start-pos (+ char-offset pos))
-                            (abs-end-pos (+ char-offset pos (length pattern))))
-                        ;; Add the match with absolute character positions
-                        (push (cons abs-start-pos abs-end-pos) results)
-                        (setf start-pos (1+ pos))) ; Move past this match
-                    (return)))) ; Exit when no more matches in this line
-              ;; Update the character offset for the next line (including newline)
-              (incf char-offset (1+ (length line))))))
-    (log-debug "Found ~a occurrences of pattern '~a'" (length results) pattern)
-    (nreverse results)))
+  (find-pattern-binary-search suffix-obj pattern))
+
+(defun get-line-number-at-position (suffix-obj pos)
+  "Get the line number for a given character position in the text."
+  (let ((cached-text (suffix-array-cached-text suffix-obj)))
+    (if cached-text
+        ;; Use cached text for fast line counting
+        (loop with count = 0
+              for i from 0 to pos
+              do (when (char= (char cached-text i) #\Newline)
+                   (incf count))
+              finally (return count))
+        ;; For large files, count newlines up to the position
+        (let ((filename (suffix-array-original-text-pathname suffix-obj)))
+          (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
+            (loop with count = 0
+                  for i from 0 to pos
+                  do (when (char= (read-char stream nil #\Newline) #\Newline)
+                       (incf count))
+                  finally (return count)))))))
 
 (defun find-lines-with-pattern (suffix-obj pattern)
   "Find all lines that contain the given pattern in the text represented by the suffix array object.
    Returns a list of (line-number . line-content) pairs for each line containing the pattern.
-   Uses memory-efficient line-by-line reading to handle large files."
+   Uses binary search on the suffix array for efficient pattern matching."
   (log-debug "Finding lines with pattern '~a' in text" pattern)
-  (let ((filename (suffix-array-original-text-pathname suffix-obj))
-        (results '())
-        (line-num 0))
-    ;; Process the file line by line to avoid loading entire file into memory
-    (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
-      (loop for line = (read-line stream nil nil)
-            while line do
-            (when (search pattern line :test #'char=)
-              (push (cons line-num line) results))
-            (incf line-num)))
-    (log-debug "Found ~a lines containing pattern '~a'" (length results) pattern)
-    (nreverse results)))
->>>>>>> 83b89d0 (feat: mem limit)
+  (let ((matches (find-pattern-binary-search suffix-obj pattern)))
+    (log-debug "Found ~a matches for pattern '~a'" (length matches) pattern)
+    (when matches
+      ;; Get the text content for each unique line
+      (let ((cached-text (suffix-array-cached-text suffix-obj)))
+        (if cached-text
+            ;; Use cached text for line extraction
+            (let ((lines-hash (make-hash-table :test #'equal)))
+              (dolist (match matches)
+                (let* ((start-pos (car match))
+                       (line-num (get-line-number-at-position suffix-obj start-pos))
+                       (cached-line (gethash line-num lines-hash))
+                       (line-content (or cached-line
+                                         (let ((end-pos (length cached-text)))
+                                           (loop for i from start-pos below end-pos
+                                                 until (char= (char cached-text i) #\Newline)
+                                                 finally (return (subseq cached-text start-pos i)))))))
+                  (setf (gethash line-num lines-hash) line-content)))
+              (loop for line-num being the hash-keys of lines-hash
+                    collect (cons line-num (gethash line-num lines-hash))))
+            ;; For large files, read lines from file
+            (let ((filename (suffix-array-original-text-pathname suffix-obj)))
+              (with-open-file (stream filename :external-format :utf-8 :element-type 'character)
+                (let ((lines-hash (make-hash-table :test #'equal)))
+                  (let ((line-num 0)
+                        (current-line ""))
+                    (loop for char = (read-char stream nil nil)
+                          while char do
+                          (if (char= char #\Newline)
+                              (progn
+                                (when (search pattern current-line :test #'char=)
+                                  (setf (gethash line-num lines-hash) current-line))
+                                (incf line-num)
+                                (setf current-line ""))
+                              (setf current-line (concatenate 'string current-line (string char)))))
+                    ;; Don't forget the last line if it doesn't end with newline
+                    (when (and (plusp (length current-line))
+                               (search pattern current-line :test #'char=))
+                      (setf (gethash line-num lines-hash) current-line))
+                    (loop for line-num being the hash-keys of lines-hash
+                          collect (cons line-num (gethash line-num lines-hash))))))))
+        ))))
 
 (defun split-text-by-lines (text)
   "Split text into a list of lines."
