@@ -9,4 +9,7 @@
            #:open-suffix-array
            #:suffix-array-original-text-pathname
            #:suffix-array-suffix-array-pathname
-           #:read-text))
+           #:read-text
+           #:process-block
+           #:perform-psascan-merge
+           #:process-text-block))

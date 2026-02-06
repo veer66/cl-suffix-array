@@ -3,18 +3,20 @@
 # cl-suffix-array-wrapper.sh - Bash wrapper for creating suffix arrays using cl-suffix-array
 #
 # Usage: ./cl-suffix-array-wrapper.sh [OPTIONS] <input-file> <output-file>
-# 
+#
 # Options:
 #   -h, --help              Show this help message
 #   -v, --verbose           Verbose output
 #   --sbcl-path PATH        Path to SBCL executable (default: sbcl)
 #   --lisp-path PATH        Path to cl-suffix-array.lisp (default: ./cl-suffix-array.lisp)
 #   --package-path PATH     Path to package.lisp (default: ./package.lisp)
+#   --dynamic-space-size SIZE  Dynamic space size for SBCL (default: 8GB)
 
 # Default values
 SBCL_PATH="sbcl"
 LISP_PATH="./cl-suffix-array.lisp"
 PACKAGE_PATH="./package.lisp"
+DYNAMIC_SPACE_SIZE=8192
 VERBOSE=false
 
 # Function to display usage
@@ -27,10 +29,12 @@ usage() {
     echo "  --sbcl-path PATH        Path to SBCL executable (default: sbcl)"
     echo "  --lisp-path PATH        Path to cl-suffix-array.lisp (default: ./cl-suffix-array.lisp)"
     echo "  --package-path PATH     Path to package.lisp (default: ./package.lisp)"
+    echo "  --dynamic-space-size SIZE  Dynamic space size for SBCL (default: 8GB)"
     echo ""
     echo "Example:"
     echo "  $0 input.txt output-sa.txt"
     echo "  $0 --verbose large-file.txt sa-output.txt"
+    echo "  $0 --dynamic-space-size 16GB huge-file.txt sa-output.txt"
     exit 1
 }
 
@@ -54,6 +58,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --package-path)
             PACKAGE_PATH="$2"
+            shift 2
+            ;;
+        --dynamic-space-size)
+            DYNAMIC_SPACE_SIZE="$2"
             shift 2
             ;;
         -*)
@@ -97,14 +105,16 @@ if [ "$VERBOSE" = true ]; then
     echo "SBCL path: $SBCL_PATH"
     echo "Package path: $PACKAGE_PATH"
     echo "Lisp path: $LISP_PATH"
+    echo "Dynamic space size: $DYNAMIC_SPACE_SIZE"
     echo "Input file: $INPUT_FILE"
     echo "Output file: $OUTPUT_FILE"
     echo "Starting suffix array construction..."
 fi
 
-# Run the SBCL command to build the suffix array
+# Run the SBCL command to build the suffix array with dynamic space size
 if [ "$VERBOSE" = true ]; then
     "$SBCL_PATH" \
+        --dynamic-space-size "$DYNAMIC_SPACE_SIZE" \
         --load "$PACKAGE_PATH" \
         --load "$LISP_PATH" \
         --eval "(format t \"Building suffix array for ~a...~%\" \"$INPUT_FILE\")" \
@@ -113,6 +123,7 @@ if [ "$VERBOSE" = true ]; then
         --quit
 else
     "$SBCL_PATH" \
+        --dynamic-space-size "$DYNAMIC_SPACE_SIZE" \
         --load "$PACKAGE_PATH" \
         --load "$LISP_PATH" \
         --eval "(cl-suffix-array:build-suffix-array \"$INPUT_FILE\" \"$OUTPUT_FILE\")" \
