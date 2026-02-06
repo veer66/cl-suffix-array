@@ -74,14 +74,15 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
                          :direction :input
                          :element-type '(unsigned-byte 8))
 
-      ;; Read and skip first block-beg bytes
-      (loop for i below block-beg do
-            (read-byte in))
-
-      ;; Read the block content
+      ;; Read the block content starting at block-beg
+      ;; Use read-sequence with :start to skip bytes and read the block
       (let* ((block-size-actual (min block-size (- block-end block-beg)))
-             (block-bytes (make-array block-size-actual :element-type '(unsigned-byte 8))))
-        (read-sequence block-bytes in)
+             ;; Read block-beg + block-size-actual bytes, then take subseq
+             (total-to-read (+ block-beg block-size-actual))
+             (buffer (make-array total-to-read :element-type '(unsigned-byte 8))))
+        (read-sequence buffer in :end total-to-read)
+        ;; Extract just the block bytes starting at block-beg
+        (let ((block-bytes (subseq buffer block-beg)))
         (log-debug "Read block content of ~a bytes" (length block-bytes))
 
         ;; Convert bytes to string for suffix sorting
@@ -96,7 +97,7 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
             ;; Write the suffix array indices (adjusted by block-beg) to the output file
             (dotimes (i (length sa))
               (format out "~a~%" (+ block-beg (aref sa i))))
-            (log-debug "Wrote suffix array to output file")))))
+            (log-debug "Wrote suffix array to output file"))))))
     (log-info "Completed processing block [~a, ~a)" block-beg block-end)))
 
 (defconstant +chunk-size+ (* 1024 1024)) ; 10MB chunks by default
