@@ -13,4 +13,5 @@
            #:process-block
            #:perform-psascan-merge
            #:process-text-block
-           #:process-all-blocks))
+           #:process-all-blocks
+           #:sufsort))

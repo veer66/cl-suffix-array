@@ -104,14 +104,53 @@ This function returns a list of pairs where each pair contains the line number (
 (asdf:test-system "cl-suffix-array")
 ```
 
-or
+## Find Functions
 
-```Bash
-sbcl --eval '(asdf:load-system :cl-suffix-array)' \
-	--eval '(asdf:test-system "cl-suffix-array")' \
-	--quit
+The library provides several functions to locate patterns in the text:
+
+### Find Pattern
+Find all occurrences of a pattern and return character positions:
+
+```lisp
+;; Create a suffix array object
+(defparameter obj (cl-suffix-array:open-suffix-array "text.txt" "suffix-array.txt"))
+
+;; Find all occurrences of a pattern
+(cl-suffix-array:find-pattern obj "search-term")
+; Returns a list of cons cells: ((start-pos . end-pos) ...)
 ```
 
+The function returns a list of pairs where each pair represents the start and end character positions of each occurrence of the pattern in the text.
+
+### Find Lines with Pattern
+Find all lines that contain a pattern and return the line numbers and content:
+
+```lisp
+;; Find all lines containing a pattern
+(cl-suffix-array:find-lines-with-pattern obj "search-term")
+; Returns a list of cons cells: ((line-number . line-content) ...)
+```
+
+This function returns a list of pairs where each pair contains the line number (0-indexed) and the full content of lines that contain the pattern.
+
+## Command-Line Wrapper
+
+A bash wrapper script is provided for convenient command-line usage:
+
+```bash
+# Basic usage
+./cl-suffix-array-wrapper.sh input.txt output-sa.txt
+
+# Verbose output
+./cl-suffix-array-wrapper.sh --verbose input.txt output-sa.txt
+
+# Custom paths
+./cl-suffix-array-wrapper.sh --sbcl-path /path/to/sbcl --lisp-path /path/to/cl-suffix-array.lisp input.txt output-sa.txt
+```
+
+The wrapper script provides a convenient way to create suffix arrays from the command line without needing to start a Lisp REPL.
+
+>>>>>>> 5a15b44 (feats: bytes)
 ## License
 
 MIT License

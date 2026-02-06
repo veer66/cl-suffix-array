@@ -30,8 +30,37 @@
   `(when *enable-logging*
      (log-message "DEBUG" ,format-string ,@args)))
 
+;;------------------------------------------------------------------------------
+;; Suffix sorting (core routine for pSAscan internal memory sorting)
+;;------------------------------------------------------------------------------
+
+(defun sufsort (text)
+  "Sort all suffixes of TEXT and return their starting positions.
+Returns a vector of integers representing the suffix array, where each
+element is the starting position of a suffix, sorted lexicographically.
+This is the core routine used by pSAscan's internal memory suffix sorting.
+Implementation mirrors divsufsort used in the pSAscan C++ code."
+  (log-debug "Suffix sorting text of length ~a" (length text))
+  (let* ((n (length text))
+         (suffix-indices (make-array n :initial-element 0)))
+    ;; Initialize array with indices 0 to n-1
+    (loop for i below n do
+      (setf (aref suffix-indices i) i))
+
+    ;; Sort indices by comparing their corresponding suffixes
+    (setf suffix-indices
+          (sort suffix-indices
+                (lambda (i j)
+                  (let ((suffix-i (subseq text i))
+                        (suffix-j (subseq text j)))
+                    (string< suffix-i suffix-j)))))
+
+    (log-debug "Completed suffix sort")
+    suffix-indices))
+
 (defun process-text-block (input-file-path output-block-file block-beg block-size block-end)
-  "Process a block of text by reading it and creating a basic suffix array."
+  "Process a block of text by reading it and creating a basic suffix array.
+Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement."
   (with-open-file (out output-block-file
                        :direction :output
                        :element-type 'character
@@ -40,32 +69,34 @@
                        :if-exists :supersede)
     (log-debug "Writing block suffix array to: ~a" output-block-file)
 
-    ;; Simulate processing of the block by reading the text and creating a basic suffix array
+    ;; Read block using byte-based reading
     (with-open-file (in input-file-path
                          :direction :input
-                         :element-type 'character
-                         :external-format :utf-8)
+                         :element-type '(unsigned-byte 8))
 
-      ;; Seek to the beginning of the block
-      (file-position in block-beg)
+      ;; Read and skip first block-beg bytes
+      (loop for i below block-beg do
+            (read-byte in))
 
       ;; Read the block content
-      (let ((block-text (make-string block-size)))
-        (read-sequence block-text in :end block-size)
-        (log-debug "Read block content of size: ~a" (length block-text))
+      (let* ((block-size-actual (min block-size (- block-end block-beg)))
+             (block-bytes (make-array block-size-actual :element-type '(unsigned-byte 8))))
+        (read-sequence block-bytes in)
+        (log-debug "Read block content of ~a bytes" (length block-bytes))
 
-        ;; Generate suffix array for this block
-        (let ((suffixes (loop for i from 0 below block-size
-                             collect (cons (+ block-beg i) (subseq block-text i)))))
+        ;; Convert bytes to string for suffix sorting
+        (let ((block-text (make-string block-size-actual)))
+          (dotimes (i block-size-actual)
+            (setf (char block-text i) (code-char (aref block-bytes i))))
 
-          ;; Sort suffixes lexicographically
-          (setf suffixes (sort suffixes #'string< :key #'cdr))
-          (log-debug "Generated and sorted ~a suffixes" (length suffixes))
+          ;; Generate suffix array for this block
+          (let ((sa (sufsort block-text)))
+            (log-debug "Generated suffix array of ~a elements" (length sa))
 
-          ;; Write the suffix array indices to the output file
-          (dolist (suffix suffixes)
-            (format out "~a~%" (car suffix)))
-          (log-debug "Wrote suffix array to output file"))))
+            ;; Write the suffix array indices (adjusted by block-beg) to the output file
+            (dotimes (i (length sa))
+              (format out "~a~%" (+ block-beg (aref sa i))))
+            (log-debug "Wrote suffix array to output file")))))
     (log-info "Completed processing block [~a, ~a)" block-beg block-end)))
 
 (defconstant +chunk-size+ (* 1024 1024)) ; 10MB chunks by default
@@ -171,7 +202,7 @@
   (with-open-file (stream filepath :element-type '(unsigned-byte 8))
       (file-length stream)))
 
-(defun build-suffix-array (input-file-path output-file-path &key (chunk-size +chunk-size+) (memory-limit (* 10 1024 1024))) ; 8GB default
+(defun build-suffix-array (input-file-path output-file-path &key (chunk-size +chunk-size+) (memory-limit (* 1024 1024)))
   "Builds a suffix array from the text in input-file-path and saves it to output-file-path using pSAscan algorithm.
    Handles files that exceed RAM capacity by processing in blocks and using parallel external memory techniques.
    Limits memory usage to the specified amount (in bytes)."
