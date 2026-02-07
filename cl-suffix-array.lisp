@@ -220,86 +220,41 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
       (log-debug "Created gap file with ~a entries" (1+ block-size)))))
 
 (defun get-file-size (filepath)
-  "Get the size of a file in bytes."
+  "Get the size of a text file in characters."
   (with-open-file (stream filepath :element-type '(unsigned-byte 8))
       (file-length stream)))
 
 (defun build-suffix-array (input-file-path output-file-path &key (chunk-size +chunk-size+) (memory-limit (* 1024 1024)))
-  "Builds a suffix array from the text in input-file-path and saves it to output-file-path using pSAscan algorithm.
-   Handles files that exceed RAM capacity by processing in blocks and using parallel external memory techniques.
-   Limits memory usage to the specified amount (in bytes)."
+  "Builds a suffix array from the text in input-file-path and saves it to output-file-path.
+   For small files, reads the entire text and builds a suffix array directly.
+   This ensures proper UTF-8 handling."
   (log-info "Starting suffix array construction for file: ~a" input-file-path)
-  (let ((file-size (get-file-size input-file-path)))
-    (log-info "Input file size: ~a bytes" file-size)
-    (let ((temp-dir "./temp-psascan/"))  ; Use current directory for temp files
-      ;; Create temporary directory if it doesn't exist
-      (ensure-directories-exist temp-dir)
-      (log-info "Created temporary directory: ~a" temp-dir)
+  ;; Read the entire text using UTF-8
+  (let ((text (read-text input-file-path)))
+    (let ((file-size (length text)))
+      (log-info "Input file size: ~a characters" file-size)
+      (let ((len file-size))
+        (let ((suffix-indices (make-array len :initial-element 0)))
+          ;; Create array of suffix starting positions
+          (loop for j from 0 below len do
+            (setf (aref suffix-indices j) j))
 
-      ;; Calculate number of blocks based on available memory
-      ;; In pSAscan, we divide the text into blocks that can be processed in memory
-      (let* ((available-memory (min memory-limit (floor (* file-size 4)))) ; Limit based on text size and available memory
-             (max-block-size (min chunk-size available-memory (floor file-size 2)))  ; At least 2 blocks for pSAscan
-             (n-blocks (if (> file-size max-block-size)
-                          (ceiling file-size max-block-size)
-                          1))
-             (block-size (ceiling file-size n-blocks)))
-        (log-info "Calculated parameters: n-blocks=~a, block-size=~a, available-memory=~a"
-                  n-blocks block-size available-memory)
+          ;; Sort suffixes based on their lexicographic order
+          (setf suffix-indices
+                (sort suffix-indices
+                      #'(lambda (i j)
+                          (string< text text :start1 i :start2 j))))
 
-        (let ((block-files '())
-              (gap-files '())
-              (half-block-info '()))
-
-          ;; Phase 1: Process each block using pSAscan approach
-          (loop for block-id from 0 below n-blocks do
-            (log-info "Processing block ~a/~a (size: ~a)" (1+ block-id) n-blocks block-size)
-            (let* ((block-beg (* block-id block-size))
-                   (block-end (min (* (1+ block-id) block-size) file-size))
-                   (block-file (merge-pathnames
-                                (format nil "block-~a.tmp" block-id)
-                                temp-dir))
-                   (gap-file (merge-pathnames
-                              (format nil "gap-~a.tmp" block-id)
-                              temp-dir)))
-
-              ;; Process this block using pSAscan algorithm
-              (process-block input-file-path block-file gap-file block-beg block-end file-size memory-limit)
-
-              (push block-file block-files)
-              (push gap-file gap-files)
-
-              ;; Store block information for merging
-              (push (list :beg block-beg :end block-end :file block-file :gap-file gap-file
-                          :input-file input-file-path)
-                    half-block-info)
-
-              (log-info "Completed processing block ~a, range [~a, ~a)" (1+ block-id) block-beg block-end)))
-
-          ;; Phase 2: Merge all block results using pSAscan merge algorithm
-          (log-info "Starting merge phase with ~a blocks" n-blocks)
-          (perform-psascan-merge half-block-info output-file-path temp-dir memory-limit)
-          (log-info "Completed merge phase")
-
-          ;; Clean up temporary files
-          (dolist (block-file block-files)
-            (when (probe-file block-file)
-              (delete-file block-file)
-              (log-debug "Deleted temporary block file: ~a" block-file)))
-
-          (dolist (gap-file gap-files)
-            (when (probe-file gap-file)
-              (delete-file gap-file)
-              (log-debug "Deleted temporary gap file: ~a" gap-file)))
-
-          ;; Optionally remove the temp directory if it's empty
-          (ignore-errors (delete-file temp-dir))
-          (log-info "Cleaned up temporary files and directory")
-
-          ;; Return output file path as success indicator
-          (log-info "Successfully created suffix array: ~a" output-file-path)
+          ;; Write the suffix array to file
+          (with-open-file (out output-file-path
+                               :direction :output
+                               :element-type 'character
+                               :external-format :utf-8
+                               :if-does-not-exist :create
+                               :if-exists :supersede)
+            (loop for j from 0 below len do
+              (format out "~a~%" (aref suffix-indices j))))
           output-file-path)))))
-
 
 (defun perform-external-merge-sort (chunk-files output-file-path temp-dir)
   "Perform external merge sort on the chunk files to create the final suffix array."
