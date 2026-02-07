@@ -34,6 +34,8 @@
 ;; Suffix sorting (core routine for pSAscan internal memory sorting)
 ;;------------------------------------------------------------------------------
 
+(defconstant +chunk-size+ (* 1024 1024)) ; 10MB chunks by default
+
 (defun sufsort (text)
   "Sort all suffixes of TEXT and return their starting positions.
 Returns a vector of integers representing the suffix array, where each
@@ -77,28 +79,27 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
       ;; Read the block content starting at block-beg
       ;; Use read-sequence with :start to skip bytes and read the block
       (let* ((block-size-actual (min block-size (- block-end block-beg)))
-             ;; Read block-beg + block-size-actual bytes, then take subseq
              (total-to-read (+ block-beg block-size-actual))
              (buffer (make-array total-to-read :element-type '(unsigned-byte 8))))
         (read-sequence buffer in :end total-to-read)
         ;; Extract just the block bytes starting at block-beg
-        (let ((block-bytes (subseq buffer block-beg))))
-        (log-debug "Read block content of ~a bytes" (length block-bytes))
+        (let ((block-bytes (subseq buffer block-beg)))
+          (log-debug "Read block content of ~a bytes" (length block-bytes))
 
-        ;; Convert bytes to string for suffix sorting
-        (let ((block-text (make-string block-size-actual)))
-          (dotimes (i block-size-actual)
-            (setf (char block-text i) (code-char (aref block-bytes i))))
+          ;; Convert bytes to string for suffix sorting
+          (let ((block-text (make-string block-size-actual)))
+            (dotimes (i block-size-actual)
+              (setf (char block-text i) (code-char (aref block-bytes i))))
 
-          ;; Generate suffix array for this block
-          (let ((sa (sufsort block-text)))
-            (log-debug "Generated suffix array of ~a elements" (length sa))
+            ;; Generate suffix array for this block
+            (let ((sa (sufsort block-text)))
+              (log-debug "Generated suffix array of ~a elements" (length sa))
 
-            ;; Write the suffix array indices (adjusted by block-beg) to the output file
-            (dotimes (i (length sa))
-              (format out "~a~%" (+ block-beg (aref sa i))))
-            (log-debug "Wrote suffix array to output file"))))
-    (log-info "Completed processing block [~a, ~a)" block-beg block-end)))
+              ;; Write the suffix array indices (adjusted by block-beg) to the output file
+              (dotimes (i (length sa))
+                (format out "~a~%" (+ block-beg (aref sa i))))
+              (log-debug "Wrote suffix array to output file")))))
+    (log-info "Completed processing block [~a, ~a)" block-beg block-end))))
 
 (defconstant +chunk-size+ (* 1024 1024)) ; 10MB chunks by default
 
@@ -196,7 +197,7 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
       ;; Write placeholder gap values
       (loop for i from 0 to block-size do
             (format gap-out "~a~%" 0))
-      (log-debug "Created gap file with ~a entries" (1+ block-size))))
+      (log-debug "Created gap file with ~a entries" (1+ block-size)))))
 
 (defun get-file-size (filepath)
   "Get the size of a file in bytes."
