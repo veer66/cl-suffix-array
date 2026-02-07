@@ -18,6 +18,8 @@ LISP_PATH="./cl-suffix-array.lisp"
 PACKAGE_PATH="./package.lisp"
 DYNAMIC_SPACE_SIZE=8192
 VERBOSE=false
+DYNAMIC_SPACE_SIZE=8192  # Default 8GB heap
+CHUNK_SIZE=10485760  # Default 10MB chunk size (10 * 1024 * 1024)
 
 # Function to display usage
 usage() {
@@ -118,7 +120,7 @@ if [ "$VERBOSE" = true ]; then
         --load "$PACKAGE_PATH" \
         --load "$LISP_PATH" \
         --eval "(format t \"Building suffix array for ~a...~%\" \"$INPUT_FILE\")" \
-        --eval "(cl-suffix-array:build-suffix-array \"$INPUT_FILE\" \"$OUTPUT_FILE\")" \
+        --eval "(cl-suffix-array:build-suffix-array \"$INPUT_FILE\" \"$OUTPUT_FILE\" :chunk-size $CHUNK_SIZE)" \
         --eval "(format t \"Suffix array saved to ~a~%\" \"$OUTPUT_FILE\")" \
         --quit
 else
@@ -126,7 +128,7 @@ else
         --dynamic-space-size "$DYNAMIC_SPACE_SIZE" \
         --load "$PACKAGE_PATH" \
         --load "$LISP_PATH" \
-        --eval "(cl-suffix-array:build-suffix-array \"$INPUT_FILE\" \"$OUTPUT_FILE\")" \
+        --eval "(cl-suffix-array:build-suffix-array \"$INPUT_FILE\" \"$OUTPUT_FILE\" :chunk-size $CHUNK_SIZE)" \
         --quit
 fi
 

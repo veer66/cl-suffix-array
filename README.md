@@ -34,6 +34,12 @@ The function accepts the following parameters:
 
 The output file contains the suffix array as a sequence of integers representing the starting positions of the sorted suffixes.
 
+build via bash script
+
+```Bash
+./suffix-array.sh input-file.txt input-file.txt-suffix-array
+```
+
 ## Search Functionality
 
 The library provides an object-oriented interface for searching patterns in the text using the suffix array:

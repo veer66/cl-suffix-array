@@ -300,7 +300,6 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
           output-file-path)))))
 
 
-
 (defun perform-external-merge-sort (chunk-files output-file-path temp-dir)
   "Perform external merge sort on the chunk files to create the final suffix array."
   (declare (ignore temp-dir))  ; Suppress unused variable warning
