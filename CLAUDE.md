@@ -4,6 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and Test Commands
 
+### Fix format
+
+```bash
+parfix cl-suffix-array.lisp > cl-suffix-array.lisp
+```
+
 ### Load and test the system
 ```bash
 # Run FiveAM tests (preferred if FiveAM is available)

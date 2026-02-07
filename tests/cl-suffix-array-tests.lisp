@@ -154,10 +154,12 @@
                     "integration-test-output.txt" "test-object.txt" "output-object.txt"
                     "test-unicode.txt" "output-unicode.txt" "test-multiline.txt"
                     "output-multiline.txt" "test-find.txt" "output-find.txt"
-                    "test-lines.txt" "output-lines.txt" "temp-psascan"))
+                    "test-lines.txt" "output-lines.txt"))
       (when (probe-file file) (delete-file file)))
     (when (probe-file "./temp-psascan")
       (ignore-errors (delete-file "./temp-psascan")))
+    (when (probe-file "temp-psascan")
+      (ignore-errors (delete-file "temp-psascan")))
 
     (format t "~&Test Results: ~a/~a tests passed~%" (- total-tests (length failed-tests)) total-tests)
     (if (endp failed-tests)

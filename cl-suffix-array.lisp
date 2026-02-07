@@ -95,9 +95,9 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
             (let ((sa (sufsort block-text)))
               (log-debug "Generated suffix array of ~a elements" (length sa))
 
-              ;; Write the suffix array indices (adjusted by block-beg) to the output file
+              ;; Write the suffix array indices (relative to block start) to the output file
               (dotimes (i (length sa))
-                (format out "~a~%" (+ block-beg (aref sa i))))
+                (format out "~a~%" (aref sa i)))
               (log-debug "Wrote suffix array to output file")))))
     (log-info "Completed processing block [~a, ~a)" block-beg block-end))))
 
@@ -110,37 +110,56 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
   (declare (ignore temp-dir memory-limit)) ; Suppress unused variable warning
   (log-info "Starting pSAscan merge for ~a blocks" (length half-block-info))
 
-  (with-open-file (out output-file-path
-                       :direction :output
-                       :element-type 'character
-                       :external-format :utf-8
-                       :if-does-not-exist :create
-                       :if-exists :supersede)
-      (log-debug "Writing merged suffix array to: ~a" output-file-path)
-
-      ;; In a real pSAscan implementation, this would perform a complex merging process
-      ;; involving gap arrays and recursive merging of blocks.
-      ;;
-      ;; For this implementation, we'll simulate the merge by combining the block results
-      ;; in the correct order based on the block boundaries.
-
-      ;; Sort the half-block info by beginning position
-      (let ((sorted-blocks (sort (copy-list half-block-info) #'< :key (lambda (x) (getf x :beg)))))
-        (log-debug "Sorted ~a blocks by position" (length sorted-blocks))
-
-        ;; Process each block in order and merge the suffix arrays
-        (dolist (block-info sorted-blocks)
-          (let ((block-file (getf block-info :file)))
-           (log-debug "Merging block file: ~a" block-file)
-           (with-open-file (in block-file
-                            :direction :input
-                            :element-type 'character
-                            :external-format :utf-8)
+  ;; Get input file from first block info
+  (let* ((input-file (getf (first half-block-info) :input-file))
+         (file-size (get-file-size input-file)))
+    ;; Read all suffixes from all blocks and collect them as absolute positions
+    (let ((all-suffixes '()))
+      (dolist (block-info half-block-info)
+        (let* ((block-beg (getf block-info :beg))
+               (block-end (getf block-info :end))
+               (block-file (getf block-info :file)))
+          ;; Read all suffix array entries for this block
+          (with-open-file (in block-file
+                           :direction :input
+                           :element-type 'character
+                           :external-format :utf-8)
             (loop for line = (read-line in nil nil)
-             while line do
-             (format out "~a~%" line)))
-           (log-debug "Merged block file: ~a" block-file)))
-        (log-info "Completed pSAscan merge for ~a blocks" (length half-block-info)))))
+                while line do
+                (let ((relative-pos (parse-integer line :junk-allowed t)))
+                  (when relative-pos
+                    ;; Store suffix info: (absolute-position . relative-position)
+                    (push (cons (+ block-beg relative-pos) relative-pos) all-suffixes))))))
+
+    ;; Sort suffixes lexicographically by their content in the text
+    (setf all-suffixes
+          (sort all-suffixes
+                (lambda (a b)
+                  (let ((pos-a (car a))
+                        (pos-b (car b)))
+                    ;; Read suffixes and compare
+                    (let ((suffix-a (make-string (- file-size pos-a)))
+                          (suffix-b (make-string (- file-size pos-b))))
+                      (with-open-file (in input-file
+                                       :element-type 'character :external-format :utf-8)
+                        (file-position in pos-a)
+                        (read-sequence suffix-a in)
+                        (file-position in pos-b)
+                        (read-sequence suffix-b in))
+                      (string< suffix-a suffix-b)))))))
+
+    ;; Write sorted suffixes to output file
+    (with-open-file (out output-file-path
+                         :direction :output
+                         :element-type 'character
+                         :external-format :utf-8
+                         :if-does-not-exist :create
+                         :if-exists :supersede)
+      (log-debug "Writing merged suffix array to: ~a" output-file-path)
+      (dolist (suffix all-suffixes)
+        (format out "~a~%" (car suffix))))
+
+    (log-info "Completed pSAscan merge for ~a blocks" (length half-block-info)))))
 
 (defun compute-gap (block-rank block-gap right-block-beg right-block-end text-length
                     max-threads block-i0 gap-buf-size block-last-symbol
@@ -250,7 +269,8 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
               (push gap-file gap-files)
 
               ;; Store block information for merging
-              (push (list :beg block-beg :end block-end :file block-file :gap-file gap-file)
+              (push (list :beg block-beg :end block-end :file block-file :gap-file gap-file
+                          :input-file input-file-path)
                     half-block-info)
 
               (log-info "Completed processing block ~a, range [~a, ~a)" (1+ block-id) block-beg block-end)))
