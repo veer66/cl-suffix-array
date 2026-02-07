@@ -150,6 +150,7 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
 
     ;; Write sorted suffixes to output file
     (with-open-file (out output-file-path
+
                          :direction :output
                          :element-type 'character
                          :external-format :utf-8
@@ -469,7 +470,8 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
     result))
 
 (defun binary-search-right-bound (suffix-obj pattern)
-  "Find the rightmost position in the suffix array where the pattern could occur."
+  "Find the rightmost position in the suffix array where the pattern could occur.
+   This finds the last position in the range where the suffix could match the pattern."
   (let* ((high (1- (get-suffix-array-length suffix-obj)))
          (low 0)
          (pattern-len (length pattern))
@@ -479,10 +481,13 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
              (suffix-start (get-suffix-at-index suffix-obj mid))
              (text-substr (get-text-at-position-from-file suffix-obj suffix-start pattern-len)))
         (cond
+          ;; If suffix is less than or equal to pattern, search right half
           ((and suffix-start text-substr (string<= text-substr pattern))
            (setf result mid)
            (setf low (1+ mid)))
-          (t (setf high (1- mid))))))
+          ;; If suffix is greater than pattern, search left half
+          (t
+           (setf high (1- mid))))))
     result))
 
 (defun find-pattern-binary-search (suffix-obj pattern)
@@ -501,8 +506,7 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
             (let ((abs-start-pos suffix-start)
                   (abs-end-pos (+ suffix-start (length pattern))))
               (push (cons abs-start-pos abs-end-pos) results)))))
-
-    (nreverse results))))
+      (nreverse results))))
 
 (defun contains (suffix-obj pattern)
   "Check if the text represented by the suffix array object contains the given pattern.
