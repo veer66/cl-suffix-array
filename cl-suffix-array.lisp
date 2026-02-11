@@ -36,6 +36,26 @@
 
 (defconstant +chunk-size+ (* 1024 1024)) ; 10MB chunks by default
 
+;;------------------------------------------------------------------------------
+;; Struct definition (must come before functions that use it)
+;;------------------------------------------------------------------------------
+
+(defstruct suffix-array
+  "Structure to represent a suffix array object wrapping original text and suffix array pathnames."
+  original-text-pathname
+  suffix-array-pathname
+  ;; Cache for the actual suffix array data in memory (for smaller files)
+  cached-suffixes
+  ;; Cache for the text content (for smaller files)
+  cached-text
+  ;; Cache for line byte positions in suffix array file (for efficient random access)
+  cached-line-byte-positions)
+
+(defun get-file-size (filepath)
+  "Get the size of a text file in bytes."
+  (with-open-file (stream filepath :element-type '(unsigned-byte 8))
+    (file-length stream)))
+
 (defun sufsort (text)
   "Sort all suffixes of TEXT and return their starting positions.
 Returns a vector of integers representing the suffix array, where each
@@ -117,8 +137,9 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
     (let ((all-suffixes '()))
       (dolist (block-info half-block-info)
         (let* ((block-beg (getf block-info :beg))
-               (block-end (getf block-info :end))
+               (_block-end (getf block-info :end)) ; Unused - kept for future extension
                (block-file (getf block-info :file)))
+          (declare (ignore _block-end)) ; Suppress unused variable warning
           ;; Read all suffix array entries for this block
           (with-open-file (in block-file
                            :direction :input
@@ -219,15 +240,18 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
             (format gap-out "~a~%" 0))
       (log-debug "Created gap file with ~a entries" (1+ block-size)))))
 
-(defun get-file-size (filepath)
-  "Get the size of a text file in characters."
-  (with-open-file (stream filepath :element-type '(unsigned-byte 8))
-      (file-length stream)))
+(defun read-text (filepath)
+  "Read the entire text file and return its contents as a string."
+  (with-open-file (stream filepath :external-format :utf-8 :element-type 'character)
+    (let ((content (make-string (file-length stream))))
+      (read-sequence content stream)
+      content)))
 
 (defun build-suffix-array (input-file-path output-file-path &key (chunk-size +chunk-size+) (memory-limit (* 1024 1024)))
   "Builds a suffix array from the text in input-file-path and saves it to output-file-path.
    For small files, reads the entire text and builds a suffix array directly.
    This ensures proper UTF-8 handling."
+  (declare (ignore chunk-size memory-limit)) ; Suppress unused variable warnings
   (log-info "Starting suffix array construction for file: ~a" input-file-path)
   ;; Read the entire text using UTF-8
   (let ((text (read-text input-file-path)))
@@ -286,17 +310,6 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
       (log-debug "Completed merging chunk file: ~a" chunk-file))
     (log-info "Completed external merge sort for ~a chunk files" (length chunk-files))))
 
-(defstruct suffix-array
-  "Structure to represent a suffix array object wrapping original text and suffix array pathnames."
-  original-text-pathname
-  suffix-array-pathname
-  ;; Cache for the actual suffix array data in memory (for smaller files)
-  cached-suffixes
-  ;; Cache for the text content (for smaller files)
-  cached-text
-  ;; Cache for line byte positions in suffix array file (for efficient random access)
-  cached-line-byte-positions)
-
 (defun read-suffix-array-data (suffix-array-pathname)
   "Read the suffix array data from file and return as a list of integers."
   (let ((suffixes '()))
@@ -319,13 +332,6 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
                   (push (1+ current-pos) positions))
                 (incf current-pos))
         (nreverse positions)))))
-
-(defun read-text (filepath)
-  "Read the entire text file and return its contents as a string."
-  (with-open-file (stream filepath :external-format :utf-8 :element-type 'character)
-    (let ((content (make-string (file-length stream))))
-      (read-sequence content stream)
-      content)))
 
 (defun open-suffix-array (original-text-pathname suffix-array-pathname)
   "Open/create a suffix array object from original text pathname and suffix array pathname."

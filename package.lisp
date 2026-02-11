@@ -10,6 +10,7 @@
            #:suffix-array-original-text-pathname
            #:suffix-array-suffix-array-pathname
            #:read-text
+           #:get-file-size
            #:process-block
            #:perform-psascan-merge
            #:process-text-block
