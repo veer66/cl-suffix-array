@@ -58,27 +58,35 @@
 
 (defun sufsort (text)
   "Sort all suffixes of TEXT and return their starting positions.
-Returns a vector of integers representing the suffix array, where each
-element is the starting position of a suffix, sorted lexicographically.
-This is the core routine used by pSAscan's internal memory suffix sorting.
-Implementation mirrors divsufsort used in the pSAscan C++ code."
+ Returns a vector of integers representing the suffix array, where each
+ element is the starting position of a suffix, sorted lexicographically.
+ This is the core routine used by pSAscan's internal memory suffix sorting.
+ Uses direct byte comparison instead of subseq for efficiency."
   (log-debug "Suffix sorting text of length ~a" (length text))
-  (let* ((n (length text))
-         (suffix-indices (make-array n :initial-element 0)))
-    ;; Initialize array with indices 0 to n-1
-    (loop for i below n do
-      (setf (aref suffix-indices i) i))
+  (labels ((suffix-less-p (i j)
+             "Compare suffixes starting at positions i and j"
+             (let* ((n (length text))
+                    (len-i (- n i))
+                    (len-j (- n j))
+                    (max-len (min len-i len-j)))
+               (loop for idx from 0 below max-len
+                     for ci = (char-code (aref text (+ i idx)))
+                     for cj = (char-code (aref text (+ j idx)))
+                     do (when (/= ci cj)
+                          (return-from suffix-less-p (< ci cj)))
+                     finally (return-from suffix-less-p (< len-i len-j))))))
+    (let* ((n (length text))
+           (suffix-indices (make-array n :element-type '(integer 0 *) :initial-element 0)))
+      ;; Initialize array with indices 0 to n-1
+      (dotimes (i n)
+        (setf (aref suffix-indices i) i))
 
-    ;; Sort indices by comparing their corresponding suffixes
-    (setf suffix-indices
-          (sort suffix-indices
-                (lambda (i j)
-                  (let ((suffix-i (subseq text i))
-                        (suffix-j (subseq text j)))
-                    (string< suffix-i suffix-j)))))
+      ;; Sort indices by comparing their corresponding suffixes
+      (setf suffix-indices
+            (sort suffix-indices #'suffix-less-p))
 
-    (log-debug "Completed suffix sort")
-    suffix-indices))
+      (log-debug "Completed suffix sort")
+      suffix-indices)))
 
 (defun process-text-block (input-file-path output-block-file block-beg block-size block-end)
   "Process a block of text by reading it and creating a basic suffix array.
