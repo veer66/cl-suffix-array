@@ -63,61 +63,63 @@
  This is the core routine used by pSAscan's internal memory suffix sorting.
  Uses direct byte comparison instead of subseq for efficiency."
   (log-debug "Suffix sorting text of length ~a" (length text))
-  (labels ((suffix-less-p (i j)
-             "Compare suffixes starting at positions i and j"
-             (let* ((n (length text))
-                    (len-i (- n i))
-                    (len-j (- n j))
-                    (max-len (min len-i len-j)))
-               (loop for idx from 0 below max-len
-                     for ci = (char-code (aref text (+ i idx)))
-                     for cj = (char-code (aref text (+ j idx)))
-                     do (when (/= ci cj)
-                          (return-from suffix-less-p (< ci cj)))
-                     finally (return-from suffix-less-p (< len-i len-j))))))
-    (let* ((n (length text))
-           (suffix-indices (make-array n :element-type '(integer 0 *) :initial-element 0)))
-      ;; Initialize array with indices 0 to n-1
-      (dotimes (i n)
-        (setf (aref suffix-indices i) i))
+  (let ((start-time (get-universal-time)))
+    (labels ((suffix-less-p (i j)
+               "Compare suffixes starting at positions i and j"
+               (let* ((n (length text))
+                      (len-i (- n i))
+                      (len-j (- n j))
+                      (max-len (min len-i len-j)))
+                 (loop for idx from 0 below max-len
+                       for ci = (char-code (aref text (+ i idx)))
+                       for cj = (char-code (aref text (+ j idx)))
+                       do (when (/= ci cj)
+                            (return-from suffix-less-p (< ci cj)))
+                       finally (return-from suffix-less-p (< len-i len-j))))))
+      (let* ((n (length text))
+             (suffix-indices (make-array n :element-type '(integer 0 *) :initial-element 0)))
+        ;; Initialize array with indices 0 to n-1
+        (dotimes (i n)
+          (setf (aref suffix-indices i) i))
 
-      ;; Sort indices by comparing their corresponding suffixes
-      (setf suffix-indices
-            (sort suffix-indices #'suffix-less-p))
+        ;; Sort indices by comparing their corresponding suffixes
+        (setf suffix-indices
+              (sort suffix-indices #'suffix-less-p))
 
-      (log-debug "Completed suffix sort")
-      suffix-indices)))
+        (log-debug "Completed suffix sort (~a seconds)" (float (- (get-universal-time) start-time)))
+        suffix-indices))))
 
 (defun process-text-block (input-file-path output-block-file block-beg block-size block-end)
   "Process a block of text by reading it and creating a basic suffix array.
 Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement."
-  (with-open-file (out output-block-file
-                       :direction :output
-                       :element-type 'character
-                       :external-format :utf-8
-                       :if-does-not-exist :create
-                       :if-exists :supersede)
-    (log-debug "Writing block suffix array to: ~a" output-block-file)
+  (let ((start-time (get-universal-time)))
+    (with-open-file (out output-block-file
+                         :direction :output
+                         :element-type 'character
+                         :external-format :utf-8
+                         :if-does-not-exist :create
+                         :if-exists :supersede)
+      (log-debug "Writing block suffix array to: ~a" output-block-file)
 
-    ;; Read block using byte-based reading
-    (with-open-file (in input-file-path
-                         :direction :input
-                         :element-type '(unsigned-byte 8))
+      ;; Read block using byte-based reading
+      (with-open-file (in input-file-path
+                           :direction :input
+                           :element-type '(unsigned-byte 8))
 
-      ;; Read the block content starting at block-beg
-      ;; Use read-sequence with :start to skip bytes and read the block
-      (let* ((block-size-actual (min block-size (- block-end block-beg)))
-             (total-to-read (+ block-beg block-size-actual))
-             (buffer (make-array total-to-read :element-type '(unsigned-byte 8))))
-        (read-sequence buffer in :end total-to-read)
-        ;; Extract just the block bytes starting at block-beg
-        (let ((block-bytes (subseq buffer block-beg)))
-          (log-debug "Read block content of ~a bytes" (length block-bytes))
+        ;; Read the block content starting at block-beg
+        ;; Use read-sequence with :start to skip bytes and read the block
+        (let* ((block-size-actual (min block-size (- block-end block-beg)))
+               (total-to-read (+ block-beg block-size-actual))
+               (buffer (make-array total-to-read :element-type '(unsigned-byte 8))))
+          (read-sequence buffer in :end total-to-read)
+          ;; Extract just the block bytes starting at block-beg
+          (let ((block-bytes (subseq buffer block-beg)))
+            (log-debug "Read block content of ~a bytes" (length block-bytes))
 
-          ;; Convert bytes to string for suffix sorting
-          (let ((block-text (make-string block-size-actual)))
-            (dotimes (i block-size-actual)
-              (setf (char block-text i) (code-char (aref block-bytes i))))
+            ;; Convert bytes to string for suffix sorting
+            (let ((block-text (make-string block-size-actual)))
+              (dotimes (i block-size-actual)
+                (setf (char block-text i) (code-char (aref block-bytes i))))
 
             ;; Generate suffix array for this block
             (let ((sa (sufsort block-text)))
@@ -126,8 +128,9 @@ Uses byte-based reading for consistency with pSAscan's byte-alphabet requirement
               ;; Write the suffix array indices (relative to block start) to the output file
               (dotimes (i (length sa))
                 (format out "~a~%" (aref sa i)))
-              (log-debug "Wrote suffix array to output file")))))
-    (log-info "Completed processing block [~a, ~a)" block-beg block-end))))
+              (log-debug "Wrote suffix array to output file"))))))
+      (log-info "Completed processing block [~a, ~a)" block-beg block-end)
+      (log-info "Completed processing block in ~a seconds" (float (- (get-universal-time) start-time))))))
 
 ;;------------------------------------------------------------------------------
 ;; Helper functions for pSAscan algorithm (must come before build-suffix-array-psascan)
